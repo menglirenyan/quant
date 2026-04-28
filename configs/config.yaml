@@ -1,0 +1,26 @@
+project:
+  name: quant
+  owner: xrrg
+  timezone: Asia/Shanghai
+
+paths:
+  raw_data: data/raw
+  processed_data: data/processed
+  cache: data/cache
+  logs: logs
+  results: results
+  reports: reports
+
+data:
+  provider: akshare
+  start_date: "20150101"
+  adjust: qfq
+
+universe:
+  sample_stocks:
+    - "000001"
+    - "600519"
+    - "300750"
+  sample_indices:
+    - "000300"
+    - "000905"

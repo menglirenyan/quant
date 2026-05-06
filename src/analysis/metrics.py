@@ -44,22 +44,24 @@ def calc_sharpe(returns: pd.Series, risk_free_rate: float = 0.0) -> float:
     if len(returns) == 0:
         return np.nan
 
-    excess_daily = returns - risk_free_rate / TRADING_DAYS
+    #risk_free_rate是无风险年化利率，
+    excess_daily = returns - risk_free_rate / TRADING_DAYS    
     std = excess_daily.std()
 
     if std == 0:
         return np.nan
 
-    return excess_daily.mean() / std * np.sqrt(TRADING_DAYS)
+    #每日超额净值均值*天数 除以 波动率标准差*根号下天数
+    return excess_daily.mean() / std  * np.sqrt(TRADING_DAYS)
 
 
 def calc_max_drawdown(price_or_nav: pd.Series) -> float:
     x = price_or_nav.dropna()
     if len(x) == 0:
         return np.nan
-
+    #注意 x是序列，cummax求距当前位置的最大值
     cummax = x.cummax()
-    drawdown = x / cummax - 1
+    drawdown = x / cummax - 1    #序列的位置一一对应与当前最大值作比较， - 1 算出回撤率。
     return drawdown.min()
 
 

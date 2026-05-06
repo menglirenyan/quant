@@ -16,7 +16,7 @@ def retry_call(
         try:
             return func()
         except Exception as e:
-            last_error = e
+            last_error = e  
             print(f"[Retry {i + 1}/{max_retry}] Error: {repr(e)}")
             time.sleep(sleep_seconds * (i + 1))
 

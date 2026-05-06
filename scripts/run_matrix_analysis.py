@@ -23,6 +23,7 @@ def main():
 
     save_csv(cov, result_root / "tables" / "cov_matrix.csv")
     save_csv(corr, result_root / "tables" / "corr_matrix.csv")
+    save_csv(ret_mat.reset_index(), result_root / "tables" / "return_matrix.csv")
 
     plot_corr_heatmap(
         corr,

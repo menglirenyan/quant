@@ -30,10 +30,10 @@ def clean_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     df = df.sort_values(["symbol", "date"])
     df = df.drop_duplicates(subset=["symbol", "date"], keep="last")
 
-    # 删除核心价格为空的数据
+    # Drop rows that cannot support OHLC return analysis.
     df = df.dropna(subset=["open", "high", "low", "close"])
 
-    # 过滤明显异常价格
+    # Filter obviously invalid prices.
     df = df[
         (df["open"] > 0)
         & (df["high"] > 0)

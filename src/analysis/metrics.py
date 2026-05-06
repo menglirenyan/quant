@@ -1,20 +1,19 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import jarque_bera
+
+from src.analysis.statistics import jarque_bera_normality
 
 TRADING_DAYS = 252
 
 
 def normality_test(returns):
-    returns = returns.dropna()
-
-    stat, p_value = jarque_bera(returns)
-
+    result = jarque_bera_normality(returns)
     return {
-        "jb_stat": stat,
-        "p_value": p_value,
-        "is_normal": p_value > 0.05,
+        "jb_stat": result["jb_stat"],
+        "p_value": result["jb_p_value"],
+        "is_normal": result["is_normal"],
     }
+
 
 def calc_simple_return(price: pd.Series) -> pd.Series:
     return price.pct_change()
@@ -66,27 +65,27 @@ def calc_max_drawdown(price_or_nav: pd.Series) -> float:
 
 def summarize_returns(df: pd.DataFrame) -> pd.DataFrame:
     """
-    输入字段：
+    Required input columns:
     - symbol
     - date
     - close
     """
     results = []
 
-    for symbol, g in df.groupby("symbol"):
-        g = g.sort_values("date").copy()
-        returns = calc_simple_return(g["close"])
+    for symbol, group in df.groupby("symbol"):
+        group = group.sort_values("date").copy()
+        returns = calc_simple_return(group["close"])
 
         results.append(
             {
                 "symbol": symbol,
-                "start_date": g["date"].min(),
-                "end_date": g["date"].max(),
-                "n_days": len(g),
+                "start_date": group["date"].min(),
+                "end_date": group["date"].max(),
+                "n_days": len(group),
                 "annual_return": calc_annual_return(returns),
                 "annual_volatility": calc_annual_volatility(returns),
                 "sharpe": calc_sharpe(returns),
-                "max_drawdown": calc_max_drawdown(g["close"]),
+                "max_drawdown": calc_max_drawdown(group["close"]),
             }
         )
 

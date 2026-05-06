@@ -10,7 +10,17 @@ sys.path.append(str(PROJECT_ROOT))
 from src.utils.config import load_yaml
 from src.data.downloader import get_stock_daily, get_index_daily
 from src.data.cleaner import clean_ohlcv
-from src.data.storage import save_parquet
+from src.data.storage import read_parquet, save_parquet
+
+
+def read_or_fetch(cache_path: Path, fetcher):
+    if cache_path.exists():
+        print(f"[Cache Hit] {cache_path}")
+        return read_parquet(cache_path)
+
+    df = fetcher()
+    save_parquet(df, cache_path)
+    return df
 
 
 def main() -> None:
@@ -23,16 +33,21 @@ def main() -> None:
 
     raw_dir = data_root / "raw"
     processed_dir = data_root / "processed"
+    cache_dir = data_root / "cache"
 
     stock_dfs = []
 
     print("Downloading stock daily data...")
     for symbol in tqdm(config["symbols"]):
-        df = get_stock_daily(
-            symbol=symbol,
-            start_date=start_date,
-            end_date=end_date,
-            adjust=adjust,
+        cache_path = cache_dir / "stocks" / f"{symbol}_{start_date}_{end_date}_{adjust}.parquet"
+        df = read_or_fetch(
+            cache_path,
+            lambda symbol=symbol: get_stock_daily(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
+                adjust=adjust,
+            ),
         )
         save_parquet(df, raw_dir / "stocks" / f"{symbol}.parquet")
 
@@ -49,10 +64,14 @@ def main() -> None:
 
     print("Downloading index daily data...")
     for name, index_code in tqdm(config["indices"].items()):
-        df = get_index_daily(
-            index_code=index_code,
-            start_date=start_date,
-            end_date=end_date,
+        cache_path = cache_dir / "indices" / f"{name}_{index_code}_{start_date}_{end_date}.parquet"
+        df = read_or_fetch(
+            cache_path,
+            lambda index_code=index_code: get_index_daily(
+                index_code=index_code,
+                start_date=start_date,
+                end_date=end_date,
+            ),
         )
         df["index_name"] = name
 

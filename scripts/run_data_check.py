@@ -14,7 +14,7 @@ from src.analysis.plotting import plot_price_curve, plot_return_distribution
 def main() -> None:
     config = load_yaml(PROJECT_ROOT / "configs" / "data.yaml")
 
-    data_root = Path(config["data_root"])
+    data_root = PROJECT_ROOT / config["data_root"]
     result_root = PROJECT_ROOT / "results"
 
     stocks = read_parquet(data_root / "processed" / "stocks_all.parquet")

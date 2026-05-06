@@ -3,7 +3,6 @@ from typing import Callable
 
 import akshare as ak
 import pandas as pd
-import requests
 
 
 def retry_call(
@@ -26,23 +25,21 @@ def retry_call(
 
 def to_market_symbol(symbol: str) -> str:
     """
-    600519 -> sh600519
-    000001 -> sz000001
-    300750 -> sz300750
+    Convert a six-digit A-share code to the market-prefixed code used by
+    some AkShare APIs, for example 600519 -> sh600519.
     """
     symbol = str(symbol).zfill(6)
 
     if symbol.startswith(("6", "5", "9")):
         return f"sh{symbol}"
-    else:
-        return f"sz{symbol}"
+    return f"sz{symbol}"
 
 
 def normalize_columns(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
     df = df.copy()
 
     rename_map = {
-        # 东方财富
+        # Eastmoney-style Chinese columns.
         "日期": "date",
         "股票代码": "symbol",
         "开盘": "open",
@@ -55,15 +52,13 @@ def normalize_columns(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
         "涨跌幅": "pct_change",
         "涨跌额": "change",
         "换手率": "turnover",
-
-        # 网易
+        # NetEase-style Chinese columns.
         "收盘价": "close",
         "最高价": "high",
         "最低价": "low",
         "开盘价": "open",
         "前收盘": "pre_close",
-
-        # 腾讯/新浪一般本身就是英文
+        # English columns returned by Sina/Tencent/index endpoints.
         "date": "date",
         "open": "open",
         "close": "close",
@@ -71,6 +66,11 @@ def normalize_columns(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
         "low": "low",
         "volume": "volume",
         "amount": "amount",
+        "turnover": "turnover",
+        "pct_change": "pct_change",
+        "change": "change",
+        "amplitude": "amplitude",
+        "pre_close": "pre_close",
     }
 
     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
@@ -79,7 +79,7 @@ def normalize_columns(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
         raise ValueError(f"date column not found. columns={df.columns.tolist()}")
 
     df["date"] = pd.to_datetime(df["date"])
-    df["symbol"] = symbol
+    df["symbol"] = str(symbol).zfill(6)
 
     keep_cols = [
         "date",
@@ -100,13 +100,24 @@ def normalize_columns(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
     existing_cols = [c for c in keep_cols if c in df.columns]
     df = df[existing_cols].copy()
 
-    for col in ["open", "high", "low", "close", "volume", "amount", "turnover", "pct_change", "change", "amplitude", "pre_close"]:
+    numeric_cols = [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "turnover",
+        "pct_change",
+        "change",
+        "amplitude",
+        "pre_close",
+    ]
+    for col in numeric_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    df = df.sort_values("date").reset_index(drop=True)
-
-    return df
+    return df.sort_values("date").reset_index(drop=True)
 
 
 def get_stock_daily_from_tx(
@@ -175,10 +186,10 @@ def get_stock_daily(
     adjust: str = "qfq",
 ) -> pd.DataFrame:
     """
-    多数据源 fallback：
-    1. 腾讯：stock_zh_a_hist_tx，优先
-    2. 新浪：stock_zh_a_daily，备选
-    3. 网易：stock_zh_a_hist_163，最后兜底，注意未复权
+    Fetch stock data with a fallback chain:
+    1. Tencent adjusted daily data.
+    2. Sina adjusted daily data.
+    3. NetEase unadjusted daily data as the final fallback.
     """
     errors = []
 
@@ -210,15 +221,16 @@ def get_index_daily(
     start_date: str,
     end_date: str,
 ) -> pd.DataFrame:
-    """
-    指数先用新浪接口。
-    AKShare 文档中 stock_zh_index_daily 是新浪指数历史行情接口。
-    """
+    """Fetch index daily data from Sina through AkShare."""
 
     index_code = str(index_code).zfill(6)
 
     if index_code.startswith(("0", "3")):
-        market_symbol = f"sh{index_code}" if index_code in {"000300", "000905", "000016"} else f"sz{index_code}"
+        market_symbol = (
+            f"sh{index_code}"
+            if index_code in {"000300", "000905", "000016"}
+            else f"sz{index_code}"
+        )
     else:
         market_symbol = to_market_symbol(index_code)
 
@@ -234,6 +246,4 @@ def get_index_daily(
 
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
-    df = df[(df["date"] >= start) & (df["date"] <= end)].copy()
-
-    return df
+    return df[(df["date"] >= start) & (df["date"] <= end)].copy()

@@ -1,0 +1,51 @@
+data_root: "data"
+result_root: "results"
+report_root: "reports"
+
+input:
+  price_path: "data/processed/stocks_all.parquet"
+  valuation_path: "data/processed/valuation.parquet"
+  security_master_path: "data/processed/security_master.parquet"
+  trade_status_path: "data/processed/trade_status.parquet"
+
+universe:
+  symbols: []
+  min_history_days: 80
+  min_symbols_per_date: 3
+  filters:
+    missing_metadata_policy: "permissive"
+    exclude_st: true
+    exclude_suspended: true
+    exclude_new_stock_days: 60
+    exclude_limit_up_down: true
+    industry_include: []
+    industry_exclude: []
+    min_float_market_cap:
+    max_float_market_cap:
+
+label:
+  forward_return_days: 5
+  timing: "next_open_to_horizon_open"
+  non_overlapping_ic: true
+
+factors:
+  momentum_window: 20
+  volatility_window: 20
+  turnover_window: 20
+  value_window: 120
+
+valuation:
+  missing_policy: "skip_factor"
+
+preprocess:
+  winsorize_quantile: 0.01
+  zscore: true
+
+backtest:
+  quantiles: 5
+  long_short_mode: "research"
+  transaction_cost_bps:
+    - 0
+    - 5
+    - 10
+    - 20

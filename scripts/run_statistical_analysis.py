@@ -68,7 +68,7 @@ def main() -> None:
     report_root.mkdir(parents=True, exist_ok=True)
     (report_root / "02_distribution_tests.md").write_text(
         build_conclusion(summary),
-        encoding="utf-8",
+        encoding="utf-8-sig",
     )
 
     print("Statistical analysis finished.")

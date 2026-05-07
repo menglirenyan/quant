@@ -20,23 +20,24 @@ def calc_simple_return(price: pd.Series) -> pd.Series:
 
 
 def calc_log_return(price: pd.Series) -> pd.Series:
+    #pd.shift(x)将数据往下挪x行
     return np.log(price / price.shift(1))
 
-
+#计算年收益率
 def calc_annual_return(returns: pd.Series) -> float:
     returns = returns.dropna()
     if len(returns) == 0:
         return np.nan
-    total_return = (1 + returns).prod() - 1
+    total_return = (1 + returns).prod() - 1    #returns是回报率一般小于1，总收益率需要先加1再累乘 再-1得到总收益率
     years = len(returns) / TRADING_DAYS
-    return (1 + total_return) ** (1 / years) - 1
+    return (1 + total_return) ** (1 / years) - 1   #对-1前的总收益率开N次，得到每年收益率
 
 
 def calc_annual_volatility(returns: pd.Series) -> float:
     returns = returns.dropna()
     if len(returns) == 0:
         return np.nan
-    return returns.std() * np.sqrt(TRADING_DAYS)
+    return returns.std() * np.sqrt(TRADING_DAYS)     #计算年波动率，认为每日股票是独立同分布的，所以方差可加。 用标准差得到波动率
 
 
 def calc_sharpe(returns: pd.Series, risk_free_rate: float = 0.0) -> float:
@@ -45,12 +46,13 @@ def calc_sharpe(returns: pd.Series, risk_free_rate: float = 0.0) -> float:
         return np.nan
 
     #risk_free_rate是无风险年化利率，
-    excess_daily = returns - risk_free_rate / TRADING_DAYS    
+    excess_daily = returns - risk_free_rate / TRADING_DAYS      #每日超额收益 = 冒险收益 - 无风险日收益
     std = excess_daily.std()
 
     if std == 0:
         return np.nan
 
+    #夏普率
     #每日超额净值均值*天数 除以 波动率标准差*根号下天数
     return excess_daily.mean() / std  * np.sqrt(TRADING_DAYS)
 

@@ -38,6 +38,7 @@ def to_market_symbol(symbol: str) -> str:
 def normalize_columns(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
     df = df.copy()
 
+    #将数据类统一映射为同样的关键词
     rename_map = {
         # Eastmoney-style Chinese columns.
         "日期": "date",
@@ -73,6 +74,7 @@ def normalize_columns(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
         "pre_close": "pre_close",
     }
 
+    #rename(k:v) 将k->v
     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
     if "date" not in df.columns:

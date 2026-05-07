@@ -85,9 +85,12 @@ def _normalize_trade_status(trade_status: pd.DataFrame | None) -> pd.DataFrame |
     return out.drop_duplicates(subset=["date", "symbol"], keep="last")
 
 
+#传来的mask其实是一个series过滤条件
 def _apply_mask(df: pd.DataFrame, audit_rows: list[dict], name: str, mask: pd.Series, message: str = "") -> pd.DataFrame:
     before = df
+    #mask 是一列 True/False     fillna(False)：空值设为 False   astype(bool)：强制转布尔
     mask = mask.fillna(False).astype(bool)
+    #只保留mask==true的行
     after = df[mask].copy()
     audit_rows.append(_audit_row(name, before, after, message=message))
     return after
@@ -121,7 +124,7 @@ def apply_universe_filters(
     filters: dict | None = None,
     security_master: pd.DataFrame | None = None,
     trade_status: pd.DataFrame | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:                   #返回两个DataFrame元组
     filters = filters or {}
     policy = filters.get("missing_metadata_policy", "permissive")
     if policy != "permissive":
@@ -136,14 +139,16 @@ def apply_universe_filters(
         keep = {str(symbol).zfill(6) for symbol in symbols}
         df = _apply_mask(df, audit_rows, "symbol_whitelist", df["symbol"].isin(keep))
 
+    #groupby("symbol") 按股票分组         transform("count") 算每只股票总天数       counts >= N → mask
     counts = df.groupby("symbol")["date"].transform("count")
     df = _apply_mask(df, audit_rows, "min_history_days", counts >= min_history_days, f"min_history_days={min_history_days}")
 
+    #停牌 = 不能买也不能卖 → 直接删掉如果没有停牌数据，就用成交量 = 0自动推断。
     if filters.get("exclude_suspended", True):
         if status is not None and "is_suspended" in status.columns:
             df = df.merge(status[["date", "symbol", "is_suspended"]], on=["date", "symbol"], how="left")
             df["is_suspended"] = df["is_suspended"].fillna(False).astype(bool)
-            df = _apply_mask(df, audit_rows, "exclude_suspended", ~df["is_suspended"])
+            df = _apply_mask(df, audit_rows, "exclude_suspended", ~df["is_suspended"])         #~取反，即保留未停牌的
             df = df.drop(columns=["is_suspended"])
         else:
             suspended = _infer_suspended_from_prices(df)
@@ -155,11 +160,12 @@ def apply_universe_filters(
                 "trade_status missing; inferred suspended rows from zero volume/amount when available",
             )
 
+    #涨停买不进，跌停卖不出 → 删掉回测必须剔除，否则收益造假。
     if filters.get("exclude_limit_up_down", True):
         if status is not None and {"is_limit_up", "is_limit_down"}.issubset(status.columns):
             df = df.merge(status[["date", "symbol", "is_limit_up", "is_limit_down"]], on=["date", "symbol"], how="left")
             df[["is_limit_up", "is_limit_down"]] = df[["is_limit_up", "is_limit_down"]].fillna(False).astype(bool)
-            df = _apply_mask(df, audit_rows, "exclude_limit_up_down", ~(df["is_limit_up"] | df["is_limit_down"]))
+            df = _apply_mask(df, audit_rows, "exclude_limit_up_down", ~(df["is_limit_up"] | df["is_limit_down"]))   #保留未涨停或跌停的
             df = df.drop(columns=["is_limit_up", "is_limit_down"])
         else:
             limit_up = _infer_limit_from_prices(df, "up")
